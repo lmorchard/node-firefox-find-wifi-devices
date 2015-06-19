@@ -21,11 +21,79 @@ module.exports = {
 
     discoverDevices().then(function(discovered) {
 
-      console.log('DISCOVERED');
-      console.dir(discovered, { depth: null, colors: true });
-      qrcode.generate(JSON.stringify(discovered));
-      test.done();
+      return new Promise(function(resolve, reject) {
 
+        try {
+        console.dir(discovered, { depth: null, colors: true });
+
+        var hosts = Object.keys(discovered);
+        var host = hosts[0];
+        var info = discovered[host];
+
+        console.log(info);
+
+        var crypto = require('crypto');
+        var tls = require('tls');
+        var fs = require('fs');
+
+        var key = fs.readFileSync('tmp/key.pem');
+        var cert = fs.readFileSync('tmp/cert.pem');
+
+        // openssl x509 -in tmp/cert.pem -fingerprint -noout -sha256
+        var fingerprint = '91:35:5D:30:BC:DD:EF:1F:92:AB:B3:9E:BF:FD:82:55:54:02:81:03:F4:07:81:DE:18:78:CE:A1:30:DD:AE:40';
+        var randomBytes = new Buffer('0123456701234567');
+
+        var oob = {
+          sha256: fingerprint,
+          k: randomBytes
+        };
+
+        var options = {
+          host: host,
+          port: info.services.devtools.port,
+          key: key,
+          cert: cert
+        };
+
+        console.log(options);
+
+        qrcode.generate(JSON.stringify(oob));
+
+        var client = tls.connect(options/*, function() {
+          console.log('CONNECTED');
+          var cert = client.getPeerCertificate();
+          console.log(cert);
+        }*/);
+
+        client.on('secureConnect', function() {
+          console.log('secureConnect');
+        });
+
+        client.on('data', function(data) {
+          console.log('data', data);
+        });
+
+        client.on('timeout', function() {
+          console.log('timeout');
+        });
+
+        client.on('close', function() {
+          console.log('close');
+        });
+
+        client.on('end', function() {
+          console.log('END');
+        });
+        } catch (e) {
+          console.error(e);
+          reject(e);
+        }
+
+      });
+
+    }).then(function() {
+      console.log('done');
+      test.done();
     }).catch(function(err) {
       console.error(err);
     });
